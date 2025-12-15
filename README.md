@@ -38,17 +38,6 @@ This project addresses these concerns through:
 | **Inference Speed (CPU)** | ~180ms/batch (64 images) |
 | **Model Size** | 44.7 MB (per model) |
 
-### Model Performance
-
-![Training History](training_history.png)
-*Training and validation curves showing convergence and generalization*
-
-![Confusion Matrix](confusion_matrix.png)
-*Confusion matrix revealing model behavior across all 43 traffic sign classes*
-
-![Per-Class Accuracy](per_class_accuracy.png)
-*Per-class performance analysis identifying challenging sign categories*
-
 ### Key Insights
 
 ✅ **Strengths:**
