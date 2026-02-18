@@ -94,7 +94,7 @@ This reduces variance and improves reliability on edge cases.
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/traffic-sign-recognition.git
+git clone https://github.com/RaduPetrila-dev/traffic-sign-recognition.git
 cd traffic-sign-recognition
 ```
 
