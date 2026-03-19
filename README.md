@@ -1,288 +1,160 @@
-# 🚦 Traffic Sign Recognition for Autonomous Vehicles
+# Traffic Sign Recognition for Autonomous Systems
 
-A production-ready deep learning pipeline for German Traffic Sign Recognition (GTSRB) dataset, designed with safety-critical applications in mind. This project demonstrates best practices in computer vision for autonomous driving systems.
+A deep learning pipeline for traffic sign classification on the [GTSRB](https://benchmark.ini.rub.de/gtsrb_news.html) dataset, built with safety-critical deployment in mind. Uses a ResNet-18 ensemble with OpenCV preprocessing, comprehensive test coverage, and inference benchmarking.
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-## 🎯 Project Overview
-
-This project implements an ensemble of deep learning models for traffic sign classification, achieving **>95% test accuracy** on the GTSRB dataset. The system uses transfer learning with ResNet18 architecture and incorporates production-grade features including:
-
-- **Robust data augmentation** mimicking real-world conditions (blur, lighting variations, occlusion)
-- **Class imbalance handling** through weighted sampling
-- **Model ensemble** (3 models) for improved reliability
-- **Comprehensive evaluation** with safety-critical metrics
-- **Inference benchmarking** for deployment feasibility
-
-### Why This Matters for Autonomous Vehicles
-
-Traffic sign recognition is a safety-critical component in autonomous driving. Unlike general image classification tasks, errors can have severe consequences:
-- Misclassifying a **stop sign** as a yield sign could cause collisions
-- Failing to detect **speed limit changes** affects legal compliance
-- Confusing **warning signs** impacts passenger safety
-
-This project addresses these concerns through:
-1. **Per-class performance analysis** to identify high-risk misclassifications
-2. **Ensemble predictions** for increased confidence
-3. **Real-time inference benchmarking** for practical deployment
-
-## 📊 Results
+## Results
 
 | Metric | Value |
 |--------|-------|
-| **Test Accuracy** | 96.8% |
-| **Training Time** | ~15 min (GPU) |
-| **Inference Speed (GPU)** | ~50ms/batch (64 images) |
-| **Inference Speed (CPU)** | ~180ms/batch (64 images) |
-| **Model Size** | 44.7 MB (per model) |
+| Test Accuracy | 96.8% |
+| Training Time | ~15 min (GPU) |
+| GPU Inference | ~50ms / batch of 64 |
+| CPU Inference | ~180ms / batch of 64 |
+| Model Size | 44.7 MB per model |
+| Unit Tests | 20 |
 
-### Key Insights
+## Why This Matters
 
-✅ **Strengths:**
-- Excellent performance on high-frequency classes (stop signs, speed limits)
-- Robust to lighting variations and minor occlusions
-- Fast inference suitable for real-time systems
+Traffic sign recognition is safety-critical. Misclassifying a stop sign as a yield sign has consequences that a 1% accuracy drop on ImageNet does not. This pipeline addresses that through:
 
-⚠️ **Areas for Improvement:**
-- Some confusion between similar speed limit signs (30 vs 50 km/h)
-- Lower accuracy on rare warning signs due to class imbalance
-- Performance degrades with severe occlusion (>60% covered)
+- **Per-class safety analysis** identifying the most dangerous misclassification pairs
+- **Sensor degradation simulation** (blur, noise, lighting variation) to test robustness
+- **OpenCV CLAHE preprocessing** for consistent performance across lighting conditions
+- **Ensemble averaging** across 3 models to reduce variance on edge cases
+- **Inference benchmarking** to verify deployment feasibility on GPU and CPU
 
-## 🏗️ Architecture
-
-### Model Design
-
-The system uses **transfer learning** with ResNet18 pretrained on ImageNet:
+## Project Structure
 
 ```
-Input (224×224×3) 
-    ↓
-ResNet18 Backbone (frozen early layers)
-    ↓
-Global Average Pooling
-    ↓
-Dropout (p=0.5)
-    ↓
-Fully Connected (512 → 43)
-    ↓
-Softmax → Class Probabilities
+traffic-sign-recognition/
+├── main.py                  # Entry point: train, evaluate, benchmark
+├── Makefile                 # train / test / infer / lint / clean
+├── requirements.txt
+├── src/
+│   ├── config.py            # Centralised hyperparameters and paths
+│   ├── data.py              # Data loading, OpenCV preprocessing, augmentation
+│   ├── model.py             # ResNet-18 architecture and ensemble logic
+│   ├── train.py             # Training loop with early stopping
+│   └── evaluate.py          # Evaluation, visualisation, benchmarking
+├── scripts/
+│   └── infer.py             # Single-image inference CLI
+├── tests/
+│   └── test_pipeline.py     # 20 unit tests (model, transforms, ensemble)
+├── checkpoints/             # Saved model weights (generated)
+└── outputs/                 # Plots and evaluation outputs (generated)
 ```
 
-### Ensemble Strategy
+## Quick Start
 
-Three models are trained with different random initializations, and predictions are averaged:
-
-```python
-ensemble_prediction = (model1 + model2 + model3) / 3
-final_class = argmax(ensemble_prediction)
-```
-
-This reduces variance and improves reliability on edge cases.
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Python 3.8 or higher
-- CUDA-capable GPU (optional, but recommended)
-- 4GB+ RAM
-- 2GB disk space for dataset
-
-### Installation
-
-1. Clone the repository:
 ```bash
-git clone https://github.com/RaduPetrila-dev/traffic-sign-recognition.git
-cd traffic-sign-recognition
-```
-
-2. Install dependencies:
-```bash
+# Install
 pip install -r requirements.txt
+
+# Download GTSRB dataset from Kaggle:
+# https://www.kaggle.com/datasets/meowmeowmeowmeowmeow/gtsrb-german-traffic-sign
+# Extract to ./gtsrb-german-traffic-sign/Train/
+
+# Train ensemble
+make train          # or: python main.py
+
+# Run tests
+make test           # or: python -m pytest tests/ -v
+
+# Inference on a single image
+python scripts/infer.py path/to/sign.png --top-k 5
+
+# Lint
+make lint
 ```
 
-3. Download the GTSRB dataset:
-- Visit [Kaggle GTSRB Dataset](https://www.kaggle.com/datasets/meowmeowmeowmeowmeow/gtsrb-german-traffic-sign)
-- Download and extract to `./gtsrb-german-traffic-sign/Train/`
+## Architecture
 
-### Usage
+**Model:** ResNet-18 pretrained on ImageNet (via `ResNet18_Weights.DEFAULT`), with early layers frozen and a custom classification head:
 
-**Training:**
+```
+Input (224x224x3) -> ResNet-18 backbone (frozen early layers)
+    -> Global Average Pooling -> Dropout(0.5) -> Linear(512 -> 43)
+```
+
+**Ensemble:** 3 models trained with different random initialisations. Final prediction averages softmax probabilities across all members.
+
+**Preprocessing (OpenCV):** CLAHE (Contrast Limited Adaptive Histogram Equalisation) applied to the L channel of LAB colour space before augmentation. This normalises contrast across varying lighting conditions, simulating real-world capture from moving vehicles.
+
+**Augmentation pipeline:**
+- Random rotation (15 degrees)
+- Colour jitter (brightness, contrast, saturation)
+- Gaussian blur (simulating camera defocus)
+- Affine transforms (translation, scale)
+- Gaussian noise injection (simulating sensor noise)
+
+**Class imbalance:** WeightedRandomSampler with inverse frequency weighting.
+
+## Testing
+
+20 unit tests covering:
+
+- Model output shape and softmax validity
+- Frozen vs trainable layer verification
+- Ensemble prediction shape and probability constraints
+- OpenCV preprocessing (type, size, colour mode preservation)
+- Transform output shapes for training and validation
+- Gaussian noise clamping to valid range
+- Validation transform determinism (no random augmentation leaking)
+- Configuration consistency checks
+
 ```bash
-python traffic_sign_recognition.py
+python -m pytest tests/ -v
 ```
 
-This will:
-- Train an ensemble of 3 models (~15 min on GPU)
-- Save model checkpoints (`traffic_sign_model_0.pth`, etc.)
-- Generate evaluation plots (confusion matrix, accuracy curves)
-- Print comprehensive metrics and safety analysis
+## Safety Analysis
 
-**Expected Output:**
+The evaluation module prints the top 10 misclassification pairs, ranked by frequency. This is the most operationally relevant metric for deployed vision systems: knowing that your model confuses class 1 (30 km/h) with class 2 (50 km/h) is more actionable than knowing overall accuracy is 96.8%.
+
+Per-class accuracy plots highlight classes below 90% accuracy in red for visual triage.
+
+## Single-Image Inference
+
+```bash
+python scripts/infer.py test_image.png --top-k 3
+
+# Output:
+# Predictions for: test_image.png
+# --------------------------------------------------
+#   Stop                                          97.82%
+#   No entry                                       1.43%
+#   Yield                                          0.31%
 ```
-Using device: cuda
-Dataset sizes - Train: 27448, Val: 5879, Test: 5880
 
-============================================================
-Training Model 1/3
-============================================================
-Epoch [1/20] - Train Loss: 0.4521, Train Acc: 87.32% | Val Loss: 0.1823, Val Acc: 94.21%
-...
-Best validation accuracy: 96.50%
+Uses the same OpenCV CLAHE preprocessing as training for consistency.
 
-============================================================
-ENSEMBLE EVALUATION ON TEST SET
-============================================================
-Test Accuracy: 96.80%
+## Configuration
 
-Classification Report:
-              precision    recall  f1-score   support
-...
-```
-## 🔧 Configuration
-
-Key hyperparameters can be adjusted in `traffic_sign_recognition.py`:
+All hyperparameters are centralised in `src/config.py`:
 
 ```python
-BATCH_SIZE = 64          # Batch size for training
-LEARNING_RATE = 0.001    # Initial learning rate
-EPOCHS = 20              # Maximum epochs
-PATIENCE = 5             # Early stopping patience
-IMG_HEIGHT = 224         # Input image height
-IMG_WIDTH = 224          # Input image width
+BATCH_SIZE = 64
+LEARNING_RATE = 0.001
+EPOCHS = 20
+PATIENCE = 5          # Early stopping
+NUM_ENSEMBLE = 3
+IMG_HEIGHT = 224
+IMG_WIDTH = 224
+NUM_CLASSES = 43
 ```
 
-## 🧪 Evaluation Metrics
+## Dataset
 
-The system provides comprehensive evaluation beyond simple accuracy:
+[German Traffic Sign Recognition Benchmark (GTSRB)](https://benchmark.ini.rub.de/gtsrb_news.html): 43 classes, 39,209 training images from German roads with varying lighting, weather, and occlusion.
 
-### 1. **Classification Report**
-- Precision, Recall, F1-score per class
-- Macro/weighted averages
+> J. Stallkamp, M. Schlipsing, J. Salmen, and C. Igel. "The German Traffic Sign Recognition Benchmark: A multi-class classification competition." IEEE IJCNN, 2011.
 
-### 2. **Confusion Matrix**
-- Visual representation of all misclassifications
-- Heatmap for quick identification of problem areas
+## License
 
-### 3. **Per-Class Accuracy**
-- Individual accuracy for each of 43 sign classes
-- Highlights underperforming categories
+MIT
 
-### 4. **Safety Analysis**
-- Top 10 most common misclassifications
-- Critical for understanding failure modes in deployment
+## Author
 
-### 5. **Inference Benchmarking**
-- CPU and GPU inference times
-- Throughput measurements (images/second)
-
-## 🔬 Technical Details
-
-### Data Augmentation
-
-Augmentation pipeline simulates real-world driving conditions:
-
-```python
-- Random rotation (±15°)          # Different viewing angles
-- Color jitter (30%)               # Lighting variations (day/night)
-- Gaussian blur (σ=0.1-2.0)       # Camera defocus/motion blur
-- Random affine (10% translation) # Position variations
-- Scale variation (90-110%)       # Distance changes
-```
-
-### Class Imbalance Handling
-
-GTSRB has severe class imbalance (some classes have 10× more samples). We address this using:
-
-```python
-WeightedRandomSampler(weights=inverse_class_frequency)
-```
-
-This ensures all classes are equally represented during training.
-
-### Learning Rate Scheduling
-
-Uses `ReduceLROnPlateau` to adaptively reduce learning rate:
-- Monitors validation accuracy
-- Reduces LR by 50% after 3 epochs without improvement
-- Prevents overshooting optimal weights
-
-### Early Stopping
-
-Stops training when validation accuracy plateaus:
-- Patience: 5 epochs
-- Prevents overfitting
-- Saves best model checkpoint
-
-## 🎓 Lessons Learned
-
-### What Worked Well
-1. **Transfer learning** dramatically improved convergence speed and accuracy
-2. **Ensemble methods** reduced variance and improved edge case performance
-3. **Weighted sampling** successfully mitigated class imbalance issues
-
-### Challenges & Solutions
-1. **Challenge:** Similar sign confusion (30 vs 50 km/h speed limits)
-   - **Solution:** Could add contrastive loss or hard negative mining
-
-2. **Challenge:** Low-frequency class performance
-   - **Solution:** Synthetic data generation or SMOTE for minority classes
-
-3. **Challenge:** Inference speed for real-time systems
-   - **Solution:** Model quantization or MobileNet architecture for production
-
-## 🚀 Future Enhancements
-
-- [ ] **Adversarial robustness testing** (FGSM, PGD attacks)
-- [ ] **Model interpretability** (Grad-CAM visualizations)
-- [ ] **Weather condition simulation** (rain, fog, snow)
-- [ ] **Deploy as REST API** with FastAPI
-- [ ] **Mobile deployment** with ONNX/TensorFlow Lite
-- [ ] **Active learning** for continuous improvement
-- [ ] **Multi-task learning** (detection + classification)
-
-## 📚 Dataset
-
-This project uses the **German Traffic Sign Recognition Benchmark (GTSRB)**:
-- 43 traffic sign classes
-- 39,209 training images
-- Real-world images from German roads
-- Varying lighting, weather, and occlusion conditions
-
-**Citation:**
-```
-J. Stallkamp, M. Schlipsing, J. Salmen, and C. Igel. 
-The German Traffic Sign Recognition Benchmark: A multi-class classification competition. 
-In Proceedings of the IEEE International Joint Conference on Neural Networks, pages 1453–1460. 2011.
-```
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. Areas for contribution:
-- Additional data augmentation techniques
-- Alternative architectures (EfficientNet, Vision Transformer)
-- Deployment scripts (Docker, AWS/GCP)
-- Web demo interface
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 👤 Author
-
-**Your Name**
+**Radu Petrila**
 - GitHub: [@RaduPetrila-dev](https://github.com/RaduPetrila-dev)
-- LinkedIn: [Radu Petrila](https://linkedin.com/in/yourprofile)
+- LinkedIn: [Radu Petrila](https://www.linkedin.com/in/radu-petrila-96762b2b2)
 - Email: sebastianpetrila8@gmail.com
-
-## 🙏 Acknowledgments
-
-- GTSRB dataset creators for providing high-quality traffic sign data
-- PyTorch team for excellent deep learning framework
-- Transfer learning research community for pretrained models
-
----
-
-**Note:** This project is for educational and research purposes. For production deployment in autonomous vehicles, additional validation, safety testing, and regulatory compliance are required.
