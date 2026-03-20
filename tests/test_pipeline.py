@@ -144,7 +144,7 @@ class TestPreprocessing:
         assert result.mode == "RGB"
 
     def test_opencv_different_clip_limits(self):
-        img = _dummy_image()
+        img = _dummy_image(256, 256)
         r1 = np.array(OpenCVPreprocess(clip_limit=1.0)(img))
         r2 = np.array(OpenCVPreprocess(clip_limit=4.0)(img))
         assert not np.array_equal(r1, r2)
@@ -236,6 +236,14 @@ class TestGradCAM:
 # ONNX export tests
 # ---------------------------------------------------------------------------
 
+onnxscript_available = True
+try:
+    import onnxscript  # noqa: F401
+except ImportError:
+    onnxscript_available = False
+
+
+@pytest.mark.skipif(not onnxscript_available, reason="onnxscript not installed")
 class TestExport:
     def test_export_creates_file(self):
         from src.export import export_to_onnx
