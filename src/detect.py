@@ -12,11 +12,10 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 import cv2
-import numpy as np
 import torch
 from PIL import Image
 
-from src.config import DEVICE, IMG_HEIGHT, IMG_WIDTH
+from src.config import DEVICE
 from src.data import get_val_transforms
 from src.labels import get_sign_name
 from src.model import ensemble_predict

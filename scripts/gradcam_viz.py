@@ -16,17 +16,16 @@ import sys
 
 import cv2
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.config import DEVICE, IMG_HEIGHT, IMG_WIDTH, MODEL_DIR, OUTPUT_DIR
-from src.data import get_val_transforms
-from src.gradcam import GradCAM
-from src.labels import get_sign_name
-from src.model import create_model
+from src.config import DEVICE, IMG_HEIGHT, IMG_WIDTH, MODEL_DIR, OUTPUT_DIR  # noqa: E402
+from src.data import get_val_transforms  # noqa: E402
+from src.gradcam import GradCAM  # noqa: E402
+from src.labels import get_sign_name  # noqa: E402
+from src.model import create_model  # noqa: E402
 
 
 def run_gradcam(image_path: str, model_idx: int = 0, target_class: int = None):

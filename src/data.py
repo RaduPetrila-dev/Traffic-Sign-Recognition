@@ -110,8 +110,9 @@ def get_dataloaders(data_dir: str = DATA_DIR):
     """
     if not os.path.exists(data_dir):
         raise FileNotFoundError(
-            f"Dataset not found at {data_dir}. "
-            "Download from https://www.kaggle.com/datasets/meowmeowmeowmeowmeow/gtsrb-german-traffic-sign"
+            f"Dataset not found at {data_dir}. Download from "
+            "https://www.kaggle.com/datasets/"
+            "meowmeowmeowmeowmeow/gtsrb-german-traffic-sign"
         )
 
     full_dataset = datasets.ImageFolder(root=data_dir, transform=get_train_transforms())

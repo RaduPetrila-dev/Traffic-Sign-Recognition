@@ -5,50 +5,27 @@ __pycache__/
 *.so
 .Python
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
-.installed.cfg
 *.egg
-MANIFEST
 
-# PyTorch Model Files
+# PyTorch checkpoints
+checkpoints/
 *.pth
 *.pt
 *.ckpt
-checkpoint/
 
-# Large Dataset Files
+# ONNX exports
+exports/
+
+# Dataset (download separately)
 gtsrb-german-traffic-sign/
 *.zip
 *.tar.gz
-*.rar
 
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb
-
-# IPython
-profile_default/
-ipython_config.py
-
-# Virtual Environments
+# Virtual environments
 env/
 venv/
-ENV/
-env.bak/
-venv.bak/
 .venv/
 
 # IDEs
@@ -56,60 +33,25 @@ venv.bak/
 .idea/
 *.swp
 *.swo
-*~
-.DS_Store
 
-# Logs and Databases
-*.log
-*.sql
-*.sqlite
-
-# Unit test / coverage reports
+# Testing
 htmlcov/
-.tox/
-.nox/
 .coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
 .pytest_cache/
+.mypy_cache/
 
-# TensorBoard
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
 runs/
 logs/
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# Generated Output Files (Comment out if you want to commit visualizations)
-# confusion_matrix.png
-# per_class_accuracy.png
-# training_history.png
-
-# Temporary Files
-*.tmp
-*.bak
-*.swp
-*~.nib
-
-# OS Files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Environment variables
+# Environment
 .env
 .env.local
+
+# Keep outputs directory but ignore generated files
+# (sample outputs should be committed manually)

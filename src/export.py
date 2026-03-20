@@ -10,7 +10,7 @@ import os
 
 import torch
 
-from src.config import DEVICE, IMG_HEIGHT, IMG_WIDTH, ONNX_DIR
+from src.config import DEVICE, IMG_HEIGHT, IMG_WIDTH
 
 
 def export_to_onnx(

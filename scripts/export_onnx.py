@@ -17,9 +17,9 @@ import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.config import DEVICE, MODEL_DIR, NUM_ENSEMBLE, ONNX_DIR
-from src.export import export_to_onnx, validate_onnx
-from src.model import create_model
+from src.config import DEVICE, MODEL_DIR, NUM_ENSEMBLE, ONNX_DIR  # noqa: E402
+from src.export import export_to_onnx, validate_onnx  # noqa: E402
+from src.model import create_model  # noqa: E402
 
 
 def export(model_idx: int = None, skip_validate: bool = False):

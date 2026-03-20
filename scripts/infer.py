@@ -15,10 +15,10 @@ from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.config import DEVICE, MODEL_DIR, NUM_ENSEMBLE
-from src.data import get_val_transforms
-from src.labels import get_sign_name
-from src.model import create_model, ensemble_predict
+from src.config import DEVICE, MODEL_DIR, NUM_ENSEMBLE  # noqa: E402
+from src.data import get_val_transforms  # noqa: E402
+from src.labels import get_sign_name  # noqa: E402
+from src.model import create_model, ensemble_predict  # noqa: E402
 
 
 def load_ensemble():

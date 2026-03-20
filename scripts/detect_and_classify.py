@@ -14,14 +14,13 @@ import os
 import sys
 
 import cv2
+import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.config import DEVICE, MODEL_DIR, NUM_ENSEMBLE, OUTPUT_DIR
-from src.detect import detect_and_classify, load_detector
-from src.model import create_model
-
-import torch
+from src.config import DEVICE, MODEL_DIR, NUM_ENSEMBLE, OUTPUT_DIR  # noqa: E402
+from src.detect import detect_and_classify, load_detector  # noqa: E402
+from src.model import create_model  # noqa: E402
 
 
 def load_classifier_ensemble():

@@ -51,7 +51,11 @@ class GradCAM:
     def _save_gradients(self, module, grad_input, grad_output):
         self._gradients = grad_output[0].detach()
 
-    def generate(self, input_tensor: torch.Tensor, target_class: Optional[int] = None) -> np.ndarray:
+    def generate(
+        self,
+        input_tensor: torch.Tensor,
+        target_class: Optional[int] = None,
+    ) -> np.ndarray:
         """Generate a Grad-CAM heatmap for a single image.
 
         Args:
