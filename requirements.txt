@@ -24,3 +24,6 @@ flake8>=6.0.0
 
 # Detection pipeline (optional, for end-to-end detect+classify)
 # ultralytics>=8.0.0
+
+# Interactive demo (optional, for the Gradio web app / HF Spaces)
+# gradio>=4.0.0

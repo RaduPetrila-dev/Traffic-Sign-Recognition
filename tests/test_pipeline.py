@@ -18,10 +18,14 @@ from src.config import (
     DEVICE, GRADCAM_TARGET_LAYER, IMG_HEIGHT, IMG_WIDTH,
     NUM_CLASSES, NUM_ENSEMBLE,
 )
-from src.data import GaussianNoise, OpenCVPreprocess, get_train_transforms, get_val_transforms
+from src.data import (
+    GaussianNoise, OpenCVPreprocess, _track_id, get_train_transforms,
+    get_val_transforms, track_aware_split,
+)
 from src.gradcam import GradCAM, generate_gradcam_for_image
 from src.labels import SIGN_NAMES, get_sign_name
 from src.model import create_ensemble, create_model, ensemble_predict
+from src.utils import seed_everything
 
 
 # ---------------------------------------------------------------------------
@@ -317,6 +321,89 @@ class TestConfig:
         model = create_model()
         layer_names = [name for name, _ in model.named_modules()]
         assert GRADCAM_TARGET_LAYER in layer_names
+
+
+# ---------------------------------------------------------------------------
+# Track-aware split tests
+# ---------------------------------------------------------------------------
+
+def _fake_samples():
+    """Synthetic GTSRB-style samples: 6 tracks per class, 30 frames each."""
+    samples = []
+    for cls in range(3):
+        for track in range(6):
+            for frame in range(30):
+                path = f"/data/{cls}/{track:05d}_{frame:05d}.png"
+                samples.append((path, cls))
+    return samples
+
+
+class TestTrackAwareSplit:
+    def test_track_id_parsing(self):
+        assert _track_id("/data/14/00012_00003.png") == "00012"
+        assert _track_id("/data/14/nounderscore.png") == "nounderscore"
+
+    def test_no_track_leakage_across_splits(self):
+        train, val, test = track_aware_split(_fake_samples())
+
+        def tracks(split):
+            return {(label, _track_id(p)) for p, label in split}
+
+        assert tracks(train).isdisjoint(tracks(val))
+        assert tracks(train).isdisjoint(tracks(test))
+        assert tracks(val).isdisjoint(tracks(test))
+
+    def test_split_covers_all_samples(self):
+        samples = _fake_samples()
+        train, val, test = track_aware_split(samples)
+        assert len(train) + len(val) + len(test) == len(samples)
+
+    def test_split_is_deterministic(self):
+        s = _fake_samples()
+        assert track_aware_split(s, seed=7) == track_aware_split(s, seed=7)
+
+
+# ---------------------------------------------------------------------------
+# Reproducibility tests
+# ---------------------------------------------------------------------------
+
+class TestSeeding:
+    def test_seed_makes_torch_reproducible(self):
+        seed_everything(123)
+        a = torch.rand(5)
+        seed_everything(123)
+        b = torch.rand(5)
+        assert torch.allclose(a, b)
+
+
+# ---------------------------------------------------------------------------
+# Grad-CAM hook lifecycle tests (network-free tiny model)
+# ---------------------------------------------------------------------------
+
+class _TinyNet(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.layer4 = torch.nn.Conv2d(3, 4, 3, padding=1)
+        self.fc = torch.nn.Linear(4, NUM_CLASSES)
+
+    def forward(self, x):
+        feats = torch.relu(self.layer4(x))
+        return self.fc(feats.mean(dim=(2, 3)))
+
+
+class TestGradCAMHooks:
+    def test_remove_clears_hooks(self):
+        model = _TinyNet()
+        cam = GradCAM(model, target_layer_name="layer4")
+        assert len(model.layer4._forward_hooks) == 1
+        cam.remove()
+        assert len(model.layer4._forward_hooks) == 0
+
+    def test_context_manager_removes_hooks(self):
+        model = _TinyNet()
+        with GradCAM(model, target_layer_name="layer4"):
+            assert len(model.layer4._forward_hooks) == 1
+        assert len(model.layer4._forward_hooks) == 0
 
 
 if __name__ == "__main__":

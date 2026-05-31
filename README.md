@@ -13,7 +13,12 @@ A modular deep learning pipeline for traffic sign detection and classification, 
 | GPU Inference | ~50 ms / batch of 64 |
 | CPU Inference | ~180 ms / batch of 64 |
 | Model Size | 44.7 MB per model |
-| Unit Tests | 40 |
+| Unit Tests | 47 |
+
+> **Evaluation note:** the split is **track-aware** — all frames of the same
+> physical sign stay in one split (see [Methodology](#methodology-leak-free-evaluation)).
+> This avoids the classic GTSRB leak where near-duplicate frames inflate the score,
+> so the number above reflects generalisation to unseen signs rather than memorised frames.
 
 ## Project Structure
 
@@ -44,7 +49,7 @@ traffic-sign-recognition/
 │   └── demo_webcam.py               # Real-time webcam demo
 │
 ├── tests/
-│   └── test_pipeline.py             # 40 unit tests
+│   └── test_pipeline.py             # 47 unit tests
 │
 ├── checkpoints/                     # Saved model weights (generated)
 ├── outputs/                         # Plots and visualisations (generated)
@@ -61,11 +66,26 @@ pip install -r requirements.txt
 # Extract to ./gtsrb-german-traffic-sign/Train/
 
 make train           # Train ensemble (3 models)
-make test            # Run 40 unit tests
+make test            # Run 47 unit tests
 make lint            # Lint all source files
+make app             # Launch the interactive Gradio demo
 ```
 
 ## Features
+
+### Interactive Demo (Gradio)
+
+Drag in a cropped sign and get the top-k predictions plus a Grad-CAM overlay
+showing where the model looked — all in the browser. Runs locally or deploys
+to [Hugging Face Spaces](https://huggingface.co/spaces) as-is.
+
+```bash
+pip install gradio
+make app          # then open http://localhost:7860
+```
+
+`scripts/app.py` loads the trained ensemble from `./checkpoints`; train first
+(`make train`) or drop in released weights.
 
 ### OpenCV CLAHE Preprocessing
 
@@ -148,6 +168,33 @@ Input (224x224x3) -> ResNet-18 backbone -> Global Avg Pool
 
 **Training:** Adam optimiser, ReduceLROnPlateau scheduling, early stopping (patience=5), best-checkpoint saving.
 
+## Methodology: Leak-Free Evaluation
+
+GTSRB images come in **tracks** — roughly 30 consecutive frames of the *same
+physical sign*. A naive per-image random split scatters near-duplicate frames
+across train/val/test, so the model is effectively tested on signs it already
+saw during training. This is the classic GTSRB pitfall and it silently inflates
+reported accuracy.
+
+This pipeline splits **by track** (`track_aware_split` in `src/data.py`):
+samples are grouped by `(class, track_id)` parsed from the GTSRB filename
+convention (`<track>_<frame>.png`), and whole groups are assigned to a split.
+No physical sign appears in more than one split, so the test accuracy reflects
+generalisation to unseen signs. All RNGs are seeded (`src/utils.py`) for
+reproducible splits and runs.
+
+## Performance
+
+Training is tuned for throughput on commodity GPUs, with safe CPU fallbacks:
+
+- **Mixed precision** (`torch.amp`) — ~2x throughput and lower memory on GPU.
+- **`torch.compile`** — graph-level fusion on supported CUDA setups.
+- **Parallel data loading** — `num_workers` + `pin_memory` keep the GPU fed
+  while the CPU-heavy CLAHE preprocessing runs in worker processes.
+
+All three are config flags (`USE_AMP`, `USE_COMPILE`, `NUM_WORKERS`) and become
+no-ops on CPU, so tests and CI run unchanged.
+
 ## Safety Analysis
 
 The evaluation module ranks the top misclassification pairs by frequency. Knowing that the model confuses class 1 (30 km/h) with class 2 (50 km/h) is more actionable than knowing overall accuracy is 96.8%. Per-class accuracy plots highlight classes below 90% in red for visual triage.
@@ -156,7 +203,7 @@ Grad-CAM heatmaps provide a second layer of safety analysis: if the model classi
 
 ## Testing
 
-40 unit tests covering:
+47 unit tests covering:
 
 - Model output shape, softmax validity, dropout presence
 - Frozen vs trainable layer verification
@@ -169,6 +216,9 @@ Grad-CAM heatmaps provide a second layer of safety analysis: if the model classi
 - ONNX export file creation and size validation
 - Label completeness (all 43 classes) and lookup correctness
 - Config consistency with model architecture
+- Track-aware split: no track leaks across train/val/test, full coverage, determinism
+- Seeded reproducibility
+- Grad-CAM hook lifecycle (hooks removed on `remove()` / context exit)
 
 ```bash
 make test
@@ -190,11 +240,15 @@ docker run --rm -v $(pwd)/checkpoints:/app/checkpoints \
 All hyperparameters in `src/config.py`:
 
 ```python
+SEED = 42
 BATCH_SIZE = 64
 LEARNING_RATE = 0.001
 EPOCHS = 20
 PATIENCE = 5
 NUM_ENSEMBLE = 3
+NUM_WORKERS = 4          # parallel data loading
+USE_AMP = True           # mixed-precision training (GPU)
+USE_COMPILE = True       # torch.compile (GPU)
 IMG_HEIGHT = 224
 IMG_WIDTH = 224
 NUM_CLASSES = 43
