@@ -40,16 +40,32 @@ class GradCAM:
         self._activations: Optional[torch.Tensor] = None
         self._gradients: Optional[torch.Tensor] = None
 
-        # Register hooks on the target layer
+        # Register hooks on the target layer, keeping handles so they can be
+        # removed. Without this, repeated GradCAM instances (e.g. one per crop
+        # in the detection loop) accumulate hooks on the model indefinitely.
         target_layer = dict(model.named_modules())[target_layer_name]
-        target_layer.register_forward_hook(self._save_activations)
-        target_layer.register_full_backward_hook(self._save_gradients)
+        self._handles = [
+            target_layer.register_forward_hook(self._save_activations),
+            target_layer.register_full_backward_hook(self._save_gradients),
+        ]
 
     def _save_activations(self, module, input_, output):
         self._activations = output.detach()
 
     def _save_gradients(self, module, grad_input, grad_output):
         self._gradients = grad_output[0].detach()
+
+    def remove(self) -> None:
+        """Remove the registered forward/backward hooks."""
+        for handle in self._handles:
+            handle.remove()
+        self._handles = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.remove()
 
     def generate(
         self,
@@ -154,7 +170,6 @@ def generate_gradcam_for_image(
     Returns:
         tuple: (overlay_image, heatmap, predicted_class, confidence)
     """
-    cam = GradCAM(model, target_layer)
     device = next(model.parameters()).device
     input_tensor = input_tensor.to(device)
 
@@ -170,8 +185,9 @@ def generate_gradcam_for_image(
     if target_class is None:
         target_class = pred_class
 
-    # Generate heatmap
-    heatmap = cam.generate(input_tensor, target_class)
+    # Generate heatmap (hooks removed automatically on exit)
+    with GradCAM(model, target_layer) as cam:
+        heatmap = cam.generate(input_tensor, target_class)
 
     # Create overlay on original image
     original_rgb = np.array(image_pil.resize((IMG_WIDTH, IMG_HEIGHT)))

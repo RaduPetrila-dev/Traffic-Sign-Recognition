@@ -5,9 +5,11 @@ from src.data import get_dataloaders
 from src.evaluate import benchmark_inference, evaluate_ensemble, plot_training_history
 from src.model import create_ensemble
 from src.train import train_ensemble
+from src.utils import seed_everything
 
 
 def main():
+    seed_everything()
     print(f"Using device: {DEVICE}\n")
 
     train_loader, val_loader, test_loader, class_names = get_dataloaders()

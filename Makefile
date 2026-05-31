@@ -1,4 +1,4 @@
-.PHONY: train test lint infer gradcam export detect demo docker-build docker-test clean
+.PHONY: train test lint infer gradcam export detect demo app docker-build docker-test clean
 
 train:
 	python main.py
@@ -26,6 +26,9 @@ detect:
 
 demo:
 	python scripts/demo_webcam.py
+
+app:
+	python scripts/app.py
 
 docker-build:
 	docker build -t traffic-sign-recognition .
