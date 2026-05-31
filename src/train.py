@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from src.config import DEVICE, EPOCHS, LEARNING_RATE, MODEL_DIR, PATIENCE
+from src.config import DEVICE, EPOCHS, LEARNING_RATE, MODEL_DIR, PATIENCE, USE_AMP
 
 
 def train_single_model(model, train_loader, val_loader, model_idx: int) -> dict:
@@ -30,8 +30,13 @@ def train_single_model(model, train_loader, val_loader, model_idx: int) -> dict:
         lr=LEARNING_RATE,
     )
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode="max", factor=0.5, patience=3, verbose=True,
+        optimizer, mode="max", factor=0.5, patience=3,
     )
+
+    # Mixed precision: autocast halves memory and ~2x throughput on GPU.
+    # The GradScaler is only enabled on CUDA; on CPU this path is a no-op.
+    amp_enabled = USE_AMP and DEVICE.type == "cuda"
+    scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled)
 
     history = {"train_loss": [], "val_loss": [], "train_acc": [], "val_acc": []}
     best_val_acc = 0.0
@@ -50,10 +55,12 @@ def train_single_model(model, train_loader, val_loader, model_idx: int) -> dict:
             images, labels = images.to(DEVICE), labels.to(DEVICE)
 
             optimizer.zero_grad()
-            outputs = model(images)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+            with torch.amp.autocast(DEVICE.type, enabled=amp_enabled):
+                outputs = model(images)
+                loss = criterion(outputs, labels)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
             running_loss += loss.item()
             _, predicted = torch.max(outputs.data, 1)
@@ -99,7 +106,9 @@ def train_single_model(model, train_loader, val_loader, model_idx: int) -> dict:
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             patience_counter = 0
-            torch.save(model.state_dict(), checkpoint_path)
+            # Unwrap torch.compile so checkpoints load on any device/setup.
+            base_model = getattr(model, "_orig_mod", model)
+            torch.save(base_model.state_dict(), checkpoint_path)
         else:
             patience_counter += 1
             if patience_counter >= PATIENCE:
@@ -110,8 +119,9 @@ def train_single_model(model, train_loader, val_loader, model_idx: int) -> dict:
     print(f"Model {model_idx + 1} finished in {elapsed:.2f}s")
     print(f"Best validation accuracy: {best_val_acc:.2f}%")
 
-    # Reload best weights
-    model.load_state_dict(torch.load(checkpoint_path, map_location=DEVICE))
+    # Reload best weights into the underlying (possibly compiled) model.
+    base_model = getattr(model, "_orig_mod", model)
+    base_model.load_state_dict(torch.load(checkpoint_path, map_location=DEVICE))
     return history
 
 
